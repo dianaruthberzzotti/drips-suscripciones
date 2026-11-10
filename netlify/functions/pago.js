@@ -10,7 +10,7 @@ const EPAGOS_ID_ORGANISMO = '23603';
 const EPAGOS_ID_USUARIO    = '403070';
 const EPAGOS_HASH          = '738d6a8237e52204f0a4ea8c74579a85';
 const EPAGOS_PASSWORD      = 'e597c02dba4c21e80bdc91a2ed0f6934';
-const EPAGOS_CONVENIO      = '25603'; // Emisión Masiva - Link de Pago
+const EPAGOS_CONVENIO      = '27603'; // Recurrencia - Tarjeta de Crédito
 
 const TOKEN_URL   = 'https://api.epagos.com/post.php';
 const CHECKOUT_URL = 'https://post.epagos.com';
