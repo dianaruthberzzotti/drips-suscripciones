@@ -131,6 +131,9 @@ exports.handler = async (event) => {
     <input name="numero_operacion"     value="${numeroOperacion}">
     <input name="detalle_operacion"    value="${concepto}">
     <input name="detalle_operacion_visible" value="S">
+    <input name="tipo_operacion"       value="1">
+    <input name="id_externo_1"         value="${numeroOperacion}">
+    <input name="id_externo_2"         value="${concepto.replace(/[^a-zA-Z0-9 ]/g,'')}">
   </form>
   <script>
     // Enviar una sola vez, evitar reenvíos por recarga
