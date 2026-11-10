@@ -124,7 +124,7 @@ exports.handler = async (event) => {
     <div class="spinner"></div>
   </div>
   <form id="f" method="POST" action="${CHECKOUT_URL}" style="display:none">
-    <input name="version"              value="2.0">
+    <input name="version"              value="1.0">
     <input name="operacion"            value="op_pago">
     <input name="convenio"             value="${EPAGOS_CONVENIO}">
     <input name="id_organismo"         value="${EPAGOS_ID_ORGANISMO}">
