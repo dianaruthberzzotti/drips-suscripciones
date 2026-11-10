@@ -44,9 +44,14 @@ exports.handler = async (event) => {
   const monto    = params.monto    || '';
   const concepto = params.concepto || 'Servicio +Drips';
   const cliente  = params.cliente  || '';
+  const email    = params.email    || '';
 
   // numero_operacion debe ser numérico — extraemos solo los dígitos del cliente
   const numeroOperacion = cliente.replace(/\D/g, '') || Date.now().toString();
+
+  // identificador_cliente: alfanumérico, mínimo 6 caracteres, único por contribuyente
+  // Usamos el cliente original (ej: "DRIPS-23804521") que ya es alfanumérico
+  const identificadorCliente = cliente || numeroOperacion;
 
   if (!monto || isNaN(parseFloat(monto))) {
     return {
@@ -130,10 +135,13 @@ exports.handler = async (event) => {
     <input name="monto_operacion"      value="${montoDecimal}">
     <input name="numero_operacion"     value="${numeroOperacion}">
     <input name="detalle_operacion"    value="${concepto}">
-    <input name="detalle_operacion_visible" value="S">
-    <input name="tipo_operacion"       value="1">
-    <input name="id_externo_1"         value="${numeroOperacion}">
-    <input name="id_externo_2"         value="${concepto.replace(/[^a-zA-Z0-9 ]/g,'')}">
+    <input name="detalle_operacion_visible"  value="S">
+    <input name="tipo_operacion"             value="1">
+    <input name="id_externo_1"              value="${numeroOperacion}">
+    <input name="id_externo_2"              value="${concepto.replace(/[^a-zA-Z0-9 ]/g,'')}">
+    <input name="identificador_cliente"     value="${identificadorCliente}">
+    ${email ? `<input name="email_pagador" value="${email}">` : ''}
+    <input name="opc_guardado_obligatorio"  value="S">
   </form>
   <script>
     // Enviar una sola vez, evitar reenvíos por recarga
