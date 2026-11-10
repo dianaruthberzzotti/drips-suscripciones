@@ -10,7 +10,7 @@ const EPAGOS_ID_ORGANISMO = '23603';
 const EPAGOS_ID_USUARIO    = '403070';
 const EPAGOS_HASH          = '738d6a8237e52204f0a4ea8c74579a85';
 const EPAGOS_PASSWORD      = 'e597c02dba4c21e80bdc91a2ed0f6934';
-const EPAGOS_CONVENIO      = '25603'; // TEST: Emisión Masiva (para diagnosticar si el problema es el convenio)
+const EPAGOS_CONVENIO      = '27603'; // Recurrencia Tarjeta de Crédito
 
 const TOKEN_URL   = 'https://api.epagos.com/post.php';
 const CHECKOUT_URL = 'https://post.epagos.com';
@@ -46,8 +46,8 @@ exports.handler = async (event) => {
   const cliente  = params.cliente  || '';
   const email    = params.email    || '';
 
-  // numero_operacion debe ser numérico — extraemos solo los dígitos del cliente
-  const numeroOperacion = cliente.replace(/\D/g, '') || Date.now().toString();
+  // numero_operacion debe ser numérico y único — usamos timestamp para evitar duplicados
+  const numeroOperacion = Date.now().toString();
 
   // identificador_cliente: alfanumérico, mínimo 6 caracteres, único por contribuyente
   // Usamos el cliente original (ej: "DRIPS-23804521") que ya es alfanumérico
