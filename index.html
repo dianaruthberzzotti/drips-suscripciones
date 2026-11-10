@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>+Drips Suscripciones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.7/axios.min.js"></script>
+<style>
+:root {
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --text-2: #4a5568;
+  --text-3: #718096;
+  --teal: #0891b2;
+  --teal-dark: #0e7490;
+  --teal-light: #e0f2fe;
+  --green: #059669;
+  --green-light: #d1fae5;
+  --yellow: #d97706;
+  --yellow-light: #fef3c7;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f172a; --card: #1e293b; --border: #334155;
+    --text: #f1f5f9; --text-2: #cbd5e1; --text-3: #94a3b8;
+    --teal-light: #164e63; --green-light: #064e3b;
+    --yellow-light: #451a03; --red-light: #450a0a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f172a; --card: #1e293b; --border: #334155;
+  --text: #f1f5f9; --text-2: #cbd5e1; --text-3: #94a3b8;
+  --teal-light: #164e63; --green-light: #064e3b;
+  --yellow-light: #451a03; --red-light: #450a0a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px; min-height: 100vh; background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 0; flex-shrink: 0;
+}
+.sidebar-logo {
+  padding: 0 20px 20px;
+  font-size: 18px; font-weight: 700; color: var(--teal);
+  border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.sidebar-logo span { font-weight: 400; color: var(--text-3); font-size: 13px; display: block; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; cursor: pointer; color: var(--text-2);
+  font-size: 14px; font-weight: 500; border-radius: 0;
+  transition: background .15s, color .15s;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--teal-light); color: var(--teal-dark); border-left-color: var(--teal); font-weight: 600; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 12px 20px; border-top: 1px solid var(--border); }
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-2);
+}
+.user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--teal); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.logout-btn { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 11px; }
+.logout-btn:hover { color: var(--red); }
+
+/* ── PRESENCIA ── */
+.presencia-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border); margin-bottom: 10px;
+  background: var(--card);
+}
+.presencia-card.online { border-color: #86efac; background: var(--green-light); }
+.presencia-card.offline { opacity: .75; }
+.presencia-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-green { background: var(--green); box-shadow: 0 0 0 3px #bbf7d0; }
+.dot-red { background: #94a3b8; }
+.presencia-nombre { font-weight: 600; font-size: 15px; }
+.presencia-rol { font-weight: 400; font-size: 12px; color: var(--text-3); }
+.presencia-estado { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.presencia-refresh {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px;
+}
+.presencia-refresh span { font-size: 12px; color: var(--text-3); }
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.page { display: none; flex-direction: column; height: 100%; }
+.page.active { display: flex; }
+.page-header {
+  padding: 24px 28px 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px; background: var(--card);
+}
+.page-title { font-size: 20px; font-weight: 700; }
+.page-sub { font-size: 13px; color: var(--text-3); margin-top: 2px; }
+.page-body { padding: 24px 28px; flex: 1; overflow-y: auto; }
+
+/* ── CARDS ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+.stat-label { font-size: 12px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+.stat-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat-value.green { color: var(--green); }
+.stat-value.yellow { color: var(--yellow); }
+.stat-value.red { color: var(--red); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg); }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge.activa { background: var(--green-light); color: var(--green); }
+.badge.pendiente { background: var(--yellow-light); color: var(--yellow); }
+.badge.inactiva, .badge.baja { background: var(--red-light); color: var(--red); }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; transition: opacity .15s, transform .1s;
+}
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--teal); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--teal-dark); }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-2); }
+.btn-ghost:hover { background: var(--bg); }
+.btn-green { background: var(--green); color: white; }
+.btn-red { background: var(--red); color: white; }
+
+/* ── FORM ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+input, select, textarea {
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text); font-size: 14px;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); }
+
+/* ── COMISION BOX ── */
+.comision-box {
+  background: var(--teal-light); border: 1px solid var(--teal);
+  border-radius: var(--radius); padding: 16px; margin-top: 8px;
+}
+.comision-box .title { font-size: 12px; font-weight: 700; color: var(--teal-dark); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+.comision-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.comision-row .lbl { color: var(--text-2); }
+.comision-row .val { font-weight: 600; }
+.comision-row.total .val { font-size: 18px; color: var(--teal-dark); }
+.comision-config { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.comision-config label { font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.comision-config input { width: 70px; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+.modal-overlay.hidden { display: none; }
+.modal { background: var(--card); border-radius: var(--radius); padding: 28px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── LINK MODAL ── */
+.link-display {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; font-size: 13px;
+  word-break: break-all; color: var(--teal); margin: 8px 0;
+}
+.msg-display {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; font-size: 13px;
+  white-space: pre-wrap; color: var(--text-2); margin: 8px 0 16px;
+}
+
+/* ── LOGIN ── */
+#login-page {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+}
+#login-page.hidden { display: none; }
+.login-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px; max-width: 360px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,.12); }
+.login-logo { font-size: 24px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+.login-sub { font-size: 14px; color: var(--text-3); margin-bottom: 28px; }
+.login-error { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 20px; }
+
+/* ── FILTROS ── */
+.filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.filters input, .filters select { font-size: 13px; padding: 7px 11px; }
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .sidebar { display: none; }
+  .form-grid { grid-template-columns: 1fr; }
+  .page-body { padding: 16px; }
+  .page-header { padding: 16px 16px 12px; }
+}
+.empty { text-align: center; color: var(--text-3); padding: 40px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">+Drips</div>
+    <div class="login-sub">Sistema de suscripciones</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Usuario</label>
+      <input type="text" id="login-user" placeholder="tu usuario" autocomplete="username">
+    </div>
+    <div class="form-group" style="margin-bottom:6px">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-error" id="login-err"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="sidebar">
+  <div class="sidebar-logo">+Drips<span>Suscripciones</span></div>
+  <div class="nav-item active" onclick="goTo('resumen')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Resumen
+  </div>
+  <div class="nav-item" onclick="goTo('suscripciones')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Suscripciones
+  </div>
+  <div class="nav-item" onclick="goTo('nueva')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Nueva suscripción
+  </div>
+  <div class="nav-item" onclick="goTo('cobro-unico')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    Cobro único
+  </div>
+  <div class="nav-item" id="nav-presencia" style="display:none" onclick="goTo('presencia')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="18" cy="8" r="2" fill="currentColor" stroke="none" style="fill:#059669"/></svg>
+    Presencia
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <span id="user-name-chip">—</span>
+      <span class="logout-btn" onclick="logout()">Salir</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- RESUMEN -->
+  <div class="page active" id="page-resumen">
+    <div class="page-header">
+      <div class="page-title">📊 Resumen</div>
+      <div class="page-sub">Estado general de suscripciones</div>
+    </div>
+    <div class="page-body">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Activas</div><div class="stat-value green" id="stat-activas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value yellow" id="stat-pendientes">—</div></div>
+        <div class="stat-card"><div class="stat-label">Bajas</div><div class="stat-value red" id="stat-bajas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total clientes</div><div class="stat-value" id="stat-total">—</div></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:14px">Suscripciones recientes</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Plan</th><th>Estado</th><th>Fecha alta</th></tr></thead>
+            <tbody id="resumen-tabla"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUSCRIPCIONES -->
+  <div class="page" id="page-suscripciones">
+    <div class="page-header">
+      <div class="page-title">👥 Suscripciones</div>
+      <div class="page-sub">Lista completa de clientes</div>
+    </div>
+    <div class="page-body">
+      <div class="filters">
+        <input type="text" id="filtro-nombre" placeholder="🔍 Buscar por nombre..." oninput="renderSuscripciones()" style="flex:1;min-width:180px">
+        <select id="filtro-estado" onchange="renderSuscripciones()">
+          <option value="">Todos los estados</option>
+          <option value="activa">Activas</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="inactiva">Inactivas</option>
+          <option value="baja">Bajas</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>DNI</th><th>Plan</th><th>Cobro</th><th>Monto</th><th>Estado</th><th>Sede</th><th>Acciones</th></tr></thead>
+            <tbody id="sus-tabla"><tr><td colspan="8" class="empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NUEVA SUSCRIPCIÓN -->
+  <div class="page" id="page-nueva">
+    <div class="page-header">
+      <div class="page-title">➕ Nueva suscripción</div>
+      <div class="page-sub">Dar de alta un cliente nuevo</div>
+    </div>
+    <div class="page-body">
+      <div class="card" style="max-width:640px">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre completo *</label>
+            <input type="text" id="n-nombre" placeholder="Ej: María López">
+          </div>
+          <div class="form-group">
+            <label>DNI *</label>
+            <input type="text" id="n-dni" placeholder="Ej: 30123456">
+          </div>
+          <div class="form-group">
+            <label>Teléfono</label>
+            <input type="text" id="n-tel" placeholder="Ej: 1122334455">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="n-email" placeholder="Ej: maria@gmail.com">
+          </div>
+          <div class="form-group">
+            <label>Plan / descripción *</label>
+            <input type="text" id="n-plan" placeholder="Ej: mas-drips-mensual">
+          </div>
+          <div class="form-group">
+            <label>Sede *</label>
+            <select id="n-sede">
+              <option value="CABA">CABA</option>
+              <option value="Misiones">Misiones</option>
+              <option value="Mendoza">Mendoza</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto mensual ($) *</label>
+            <input type="number" id="n-monto" placeholder="Ej: 50000" oninput="calcComisionNueva()">
+          </div>
+          <div class="form-group">
+            <label>Medio de pago *</label>
+            <select id="n-cobro">
+              <option value="credito">Crédito</option>
+              <option value="debito">Débito</option>
+              <option value="debin">DEBIN</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Observaciones</label>
+            <input type="text" id="n-obs" placeholder="Opcional">
+          </div>
+        </div>
+
+        <!-- Comisión suscripción -->
+        <div id="comision-nueva-box" class="comision-box" style="margin-top:20px;display:none">
+          <div class="title">💳 Cálculo de comisiones e-Pagos</div>
+          <div class="comision-config">
+            <label>% comisión e-Pagos:</label>
+            <input type="number" id="pct-nueva" value="3.5" step="0.1" min="0" max="100" oninput="calcComisionNueva()">
+          </div>
+          <div class="comision-row"><span class="lbl">Monto ingresado</span><span class="val" id="cn-base">—</span></div>
+          <div class="comision-row"><span class="lbl">Comisión e-Pagos</span><span class="val" id="cn-com">—</span></div>
+          <div class="comision-row total"><span class="lbl" style="font-weight:700">Precio sugerido al cliente</span><span class="val" id="cn-sug">—</span></div>
+        </div>
+
+        <div style="margin-top:20px;display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="guardarSuscripcion()">Generar link de pago</button>
+          <button class="btn btn-ghost" onclick="limpiarFormNueva()">Limpiar</button>
+        </div>
+        <div id="nueva-error" style="color:var(--red);font-size:13px;margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COBRO ÚNICO -->
+  <div class="page" id="page-cobro-unico">
+    <div class="page-header">
+      <div class="page-title">💸 Cobro único</div>
+      <div class="page-sub">Generar link de pago para un cobro puntual</div>
+    </div>
+    <div class="page-body">
+      <div class="card" style="max-width:520px">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nombre del paciente *</label>
+            <input type="text" id="cu-nombre" placeholder="Ej: Juan García">
+          </div>
+          <div class="form-group">
+            <label>Monto a cobrar ($) *</label>
+            <input type="number" id="cu-monto" placeholder="Ej: 30000" oninput="calcComisionUnica()">
+          </div>
+          <div class="form-group">
+            <label>Concepto</label>
+            <input type="text" id="cu-concepto" placeholder="Ej: Consulta, Sesión IV...">
+          </div>
+        </div>
+
+        <!-- Comisión cobro único -->
+        <div id="comision-unica-box" class="comision-box" style="margin-top:20px;display:none">
+          <div class="title">💳 Cálculo de comisiones</div>
+          <div class="comision-config">
+            <label>% comisión e-Pagos:</label>
+            <input type="number" id="pct-unica" value="3.5" step="0.1" min="0" max="100" oninput="calcComisionUnica()">
+          </div>
+          <div class="comision-row"><span class="lbl">Monto ingresado</span><span class="val" id="cu-base">—</span></div>
+          <div class="comision-row"><span class="lbl">Comisión e-Pagos</span><span class="val" id="cu-com">—</span></div>
+          <div class="comision-row total"><span class="lbl" style="font-weight:700">Precio sugerido al cliente</span><span class="val" id="cu-sug">—</span></div>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top:20px" onclick="generarCobroUnico()">💸 Generar link de cobro</button>
+        <div id="cu-error" style="color:var(--red);font-size:13px;margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRESENCIA -->
+  <div class="page" id="page-presencia">
+    <div class="page-header">
+      <div class="page-title">👥 Presencia</div>
+      <div class="page-sub">Quién está conectado ahora · se actualiza cada 5 min</div>
+    </div>
+    <div class="page-body">
+      <div class="presencia-refresh">
+        <button class="btn btn-ghost btn-sm" onclick="renderPresencia()">🔄 Actualizar</button>
+        <span id="presencia-hora"></span>
+      </div>
+      <div id="presencia-lista">
+        <p style="color:var(--text-3);font-size:13px">Cargando...</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL LINK -->
+<div class="modal-overlay hidden" id="modal-link">
+  <div class="modal">
+    <div class="modal-title" id="modal-link-title">Link de pago generado ✅</div>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:8px">Link de e-Pagos:</div>
+    <div class="link-display" id="modal-link-url">—</div>
+    <div style="font-size:13px;color:var(--text-2);margin-top:12px;margin-bottom:4px">Mensaje para WhatsApp:</div>
+    <div class="msg-display" id="modal-link-msg">—</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="copiarLink()">📋 Copiar link</button>
+      <button class="btn btn-primary btn-sm" onclick="copiarMsg()">📋 Copiar mensaje completo</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalLink()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR -->
+<div class="modal-overlay hidden" id="modal-confirm">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title">¿Confirmar acción?</div>
+    <p id="confirm-msg" style="font-size:14px;color:var(--text-2)"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarConfirm()">Cancelar</button>
+      <button class="btn btn-primary" id="confirm-ok" onclick="">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://kdjgexfqzrkdpjlbozsq.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkamdleGZxenJrZHBqbGJvenNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODQ4NTYsImV4cCI6MjA5Njg2MDg1Nn0.4cRABAoFb1MtRfHCYu0xbeAYc13R2d_9qwCIk4AsJvQ';
+const headers = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
+
+let currentUser = null;
+let allSuscripciones = [];
+let pingInterval = null;
+
+// ── AUTH ──
+async function doLogin() {
+  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const p = document.getElementById('login-pass').value;
+  document.getElementById('login-err').textContent = '';
+  if (!u || !p) { document.getElementById('login-err').textContent = 'Completá usuario y contraseña.'; return; }
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/usuarios?usuario=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`, { headers });
+    const data = await r.json();
+    if (!data.length) { document.getElementById('login-err').textContent = 'Usuario o contraseña incorrectos.'; return; }
+    currentUser = data[0];
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('user-avatar').textContent = currentUser.nombre[0].toUpperCase();
+    document.getElementById('user-name-chip').textContent = currentUser.nombre;
+
+    // Registrar conexión y arrancar ping
+    const ahora = new Date().toISOString();
+    await fetch(`${SUPA_URL}/rest/v1/usuarios?id=eq.${currentUser.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ conectado_desde: ahora, ultimo_ping: ahora })
+    });
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(enviarPing, 2 * 60 * 1000); // cada 2 minutos
+
+    // Mostrar/ocultar ítem de presencia según rol
+    const navPresencia = document.getElementById('nav-presencia');
+    if (navPresencia) {
+      navPresencia.style.display = (currentUser.rol === 'admin' || currentUser.usuario === 'diana') ? 'flex' : 'none';
+    }
+
+    await cargarSuscripciones();
+    renderResumen();
+  } catch(e) { document.getElementById('login-err').textContent = 'Error de conexión.'; }
+}
+
+async function enviarPing() {
+  if (!currentUser) return;
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/usuarios?id=eq.${currentUser.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ ultimo_ping: new Date().toISOString() })
+    });
+  } catch(e) {}
+}
+
+async function logout() {
+  if (currentUser) {
+    // Limpiar presencia al salir
+    try {
+      await fetch(`${SUPA_URL}/rest/v1/usuarios?id=eq.${currentUser.id}`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({ conectado_desde: null, ultimo_ping: null })
+      });
+    } catch(e) {}
+  }
+  if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+  currentUser = null;
+  document.getElementById('login-page').classList.remove('hidden');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// Limpiar presencia si cierra la pestaña
+window.addEventListener('beforeunload', () => {
+  if (currentUser) {
+    navigator.sendBeacon(`${SUPA_URL}/rest/v1/usuarios?id=eq.${currentUser.id}`,
+      new Blob([JSON.stringify({ conectado_desde: null, ultimo_ping: null })],
+      { type: 'application/json' })
+    );
+  }
+});
+
+// ── NAVEGACIÓN ──
+function goTo(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  const navItems = document.querySelectorAll('.nav-item');
+  const pages = ['resumen','suscripciones','nueva','cobro-unico','presencia'];
+  const idx = pages.indexOf(p);
+  // buscar el nav item correcto por onclick
+  navItems.forEach(el => { if (el.getAttribute('onclick') === `goTo('${p}')`) el.classList.add('active'); });
+  if (p === 'resumen') renderResumen();
+  if (p === 'suscripciones') renderSuscripciones();
+  if (p === 'presencia') {
+    renderPresencia();
+    document.getElementById('presencia-hora').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  }
+}
+
+// ── DATOS ──
+async function cargarSuscripciones() {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/suscripciones?select=*&order=created_at.desc`, { headers });
+    allSuscripciones = await r.json();
+  } catch(e) { allSuscripciones = []; }
+}
+
+// ── RESUMEN ──
+function renderResumen() {
+  const activas = allSuscripciones.filter(s => s.estado === 'activa').length;
+  const pendientes = allSuscripciones.filter(s => s.estado === 'pendiente').length;
+  const bajas = allSuscripciones.filter(s => s.estado === 'baja' || s.estado === 'inactiva').length;
+  document.getElementById('stat-activas').textContent = activas;
+  document.getElementById('stat-pendientes').textContent = pendientes;
+  document.getElementById('stat-bajas').textContent = bajas;
+  document.getElementById('stat-total').textContent = allSuscripciones.length;
+  const recientes = allSuscripciones.slice(0, 8);
+  document.getElementById('resumen-tabla').innerHTML = recientes.length
+    ? recientes.map(s => `<tr>
+        <td style="font-weight:600">${s.nombre}</td>
+        <td style="color:var(--text-3)">${s.plan||'—'}</td>
+        <td><span class="badge ${s.estado}">${estadoLabel(s.estado)}</span></td>
+        <td style="color:var(--text-3)">${s.fecha_alta ? new Date(s.fecha_alta).toLocaleDateString('es-AR') : '—'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" class="empty">Sin suscripciones aún</td></tr>';
+}
+
+function estadoLabel(e) {
+  const m = { activa:'🟢 Activa', pendiente:'🟡 Pendiente', inactiva:'🔴 Inactiva', baja:'🔴 Baja' };
+  return m[e] || e;
+}
+
+// ── LISTA SUSCRIPCIONES ──
+function renderSuscripciones() {
+  const busq = (document.getElementById('filtro-nombre').value||'').toLowerCase();
+  const est = document.getElementById('filtro-estado').value;
+  let lista = allSuscripciones.filter(s => {
+    const matchN = !busq || s.nombre.toLowerCase().includes(busq);
+    const matchE = !est || s.estado === est;
+    return matchN && matchE;
+  });
+  document.getElementById('sus-tabla').innerHTML = lista.length
+    ? lista.map(s => `<tr>
+        <td style="font-weight:600">${s.nombre}</td>
+        <td style="color:var(--text-3)">${s.dni||'—'}</td>
+        <td style="color:var(--text-3)">${s.plan||'—'}</td>
+        <td>${cobLabel(s.cobro)}</td>
+        <td style="font-weight:600">${s.monto ? '$'+Number(s.monto).toLocaleString('es-AR') : '—'}</td>
+        <td><span class="badge ${s.estado}">${estadoLabel(s.estado)}</span></td>
+        <td style="color:var(--text-3)">${s.sede||'—'}</td>
+        <td style="white-space:nowrap">${botonesAccion(s)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="empty">Sin resultados</td></tr>';
+}
+
+function cobLabel(c) {
+  const m = { credito:'💳 Crédito', debito:'💳 Débito', debin:'🏦 DEBIN' };
+  return m[c] || c || '—';
+}
+
+function botonesAccion(s) {
+  let btns = '';
+  if (s.link) btns += `<button class="btn btn-ghost btn-sm" onclick="mostrarLink('${s.id}')">🔗 Link</button> `;
+  if (s.estado === 'pendiente') btns += `<button class="btn btn-green btn-sm" onclick="confirmarActivar('${s.id}','${s.nombre}')">✓ Confirmar</button> `;
+  if (s.estado === 'activa') btns += `<button class="btn btn-ghost btn-sm" onclick="confirmarBaja('${s.id}','${s.nombre}')">Dar de baja</button>`;
+  return btns || '—';
+}
+
+// ── LINK MODAL ──
+function mostrarLink(id) {
+  const s = allSuscripciones.find(x => x.id === id);
+  if (!s || !s.link) return;
+  document.getElementById('modal-link-title').textContent = `Link de pago — ${s.nombre}`;
+  document.getElementById('modal-link-url').textContent = s.link;
+  document.getElementById('modal-link-msg').textContent = mensajeWA(s.nombre, s.link);
+  document.getElementById('modal-link').classList.remove('hidden');
+}
+
+function mensajeWA(nombre, link) {
+  return `Hola ${nombre} 👋 Te mando el link para activar tu suscripción +Drips 💧\nHacé clic, cargá tus datos de pago y listo — los meses siguientes se cobran solos sin que tengas que hacer nada más.\n🔗 ${link}\nSi en algún momento querés pausar o cancelar, avisame por acá y lo resolvemos 🙌`;
+}
+
+function cerrarModalLink() { document.getElementById('modal-link').classList.add('hidden'); }
+
+function copiarLink() {
+  const txt = document.getElementById('modal-link-url').textContent;
+  navigator.clipboard.writeText(txt).catch(() => {});
+}
+function copiarMsg() {
+  const txt = document.getElementById('modal-link-msg').textContent;
+  navigator.clipboard.writeText(txt).catch(() => {});
+}
+
+// ── CONFIRMAR / BAJA ──
+let confirmAction = null;
+function confirmarActivar(id, nombre) {
+  document.getElementById('confirm-title').textContent = 'Confirmar pago';
+  document.getElementById('confirm-msg').textContent = `¿Confirmar que ${nombre} ya pagó y activar la suscripción?`;
+  document.getElementById('confirm-ok').onclick = () => activar(id);
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+function confirmarBaja(id, nombre) {
+  document.getElementById('confirm-title').textContent = 'Dar de baja';
+  document.getElementById('confirm-msg').textContent = `¿Dar de baja la suscripción de ${nombre}? Ya no se cobrará el mes siguiente.`;
+  document.getElementById('confirm-ok').onclick = () => darBaja(id);
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+function cerrarConfirm() { document.getElementById('modal-confirm').classList.add('hidden'); }
+
+async function activar(id) {
+  cerrarConfirm();
+  await fetch(`${SUPA_URL}/rest/v1/suscripciones?id=eq.${id}`, { method:'PATCH', headers, body: JSON.stringify({ estado:'activa', fecha_alta: new Date().toISOString() }) });
+  await cargarSuscripciones();
+  renderSuscripciones();
+  renderResumen();
+}
+
+async function darBaja(id) {
+  cerrarConfirm();
+  await fetch(`${SUPA_URL}/rest/v1/suscripciones?id=eq.${id}`, { method:'PATCH', headers, body: JSON.stringify({ estado:'baja', fecha_baja: new Date().toISOString() }) });
+  await cargarSuscripciones();
+  renderSuscripciones();
+  renderResumen();
+}
+
+// ── NUEVA SUSCRIPCIÓN ──
+function calcComisionNueva() {
+  const monto = parseFloat(document.getElementById('n-monto').value);
+  const pct = parseFloat(document.getElementById('pct-nueva').value) || 0;
+  const box = document.getElementById('comision-nueva-box');
+  if (!monto || monto <= 0) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const com = monto * pct / 100;
+  const sug = monto + com;
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-AR');
+  document.getElementById('cn-base').textContent = fmt(monto);
+  document.getElementById('cn-com').textContent = fmt(com) + ` (${pct}%)`;
+  document.getElementById('cn-sug').textContent = fmt(sug);
+}
+
+async function guardarSuscripcion() {
+  const nombre = document.getElementById('n-nombre').value.trim().toUpperCase();
+  const dni = document.getElementById('n-dni').value.trim();
+  const monto = parseFloat(document.getElementById('n-monto').value);
+  const err = document.getElementById('nueva-error');
+  err.textContent = '';
+  if (!nombre || !dni || !monto) { err.textContent = 'Completá nombre, DNI y monto.'; return; }
+
+  const id_cliente = `DRIPS-${dni}`;
+  const row = {
+    nombre, dni,
+    tel: document.getElementById('n-tel').value.trim(),
+    email: document.getElementById('n-email').value.trim(),
+    plan: document.getElementById('n-plan').value.trim() || 'mas-drips',
+    sede: document.getElementById('n-sede').value,
+    monto,
+    cobro: document.getElementById('n-cobro').value,
+    obs: document.getElementById('n-obs').value.trim(),
+    estado: 'pendiente',
+    identificador_cliente: id_cliente,
+    creado_por: currentUser.nombre,
+    link: `${window.location.origin}/.netlify/functions/pago?monto=${Math.round(monto)}&concepto=${encodeURIComponent('Suscripcion +Drips')}&cliente=${encodeURIComponent(id_cliente)}`
+  };
+
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/suscripciones`, { method:'POST', headers: {...headers,'Prefer':'return=representation'}, body: JSON.stringify(row) });
+    const data = await r.json();
+    const saved = Array.isArray(data) ? data[0] : data;
+    await cargarSuscripciones();
+    limpiarFormNueva();
+    // mostrar modal con link
+    document.getElementById('modal-link-title').textContent = `✅ Cliente cargado — ${nombre}`;
+    document.getElementById('modal-link-url').textContent = saved.link || row.link;
+    document.getElementById('modal-link-msg').textContent = mensajeWA(nombre, saved.link || row.link);
+    document.getElementById('modal-link').classList.remove('hidden');
+  } catch(e) { err.textContent = 'Error al guardar. Intentá de nuevo.'; }
+}
+
+function limpiarFormNueva() {
+  ['n-nombre','n-dni','n-tel','n-email','n-plan','n-monto','n-obs'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('comision-nueva-box').style.display = 'none';
+  document.getElementById('nueva-error').textContent = '';
+}
+
+// ── COBRO ÚNICO ──
+function calcComisionUnica() {
+  const monto = parseFloat(document.getElementById('cu-monto').value);
+  const pct = parseFloat(document.getElementById('pct-unica').value) || 0;
+  const box = document.getElementById('comision-unica-box');
+  if (!monto || monto <= 0) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const com = monto * pct / 100;
+  const sug = monto + com;
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-AR');
+  document.getElementById('cu-base').textContent = fmt(monto);
+  document.getElementById('cu-com').textContent = fmt(com) + ` (${pct}%)`;
+  document.getElementById('cu-sug').textContent = fmt(sug);
+}
+
+function generarCobroUnico() {
+  const nombre = document.getElementById('cu-nombre').value.trim();
+  const monto = parseFloat(document.getElementById('cu-monto').value);
+  const concepto = document.getElementById('cu-concepto').value.trim();
+  const err = document.getElementById('cu-error');
+  err.textContent = '';
+  if (!nombre || !monto) { err.textContent = 'Completá nombre y monto.'; return; }
+
+  // Para cobro único usamos el monto sugerido (con comisión incluida)
+  const pct = parseFloat(document.getElementById('pct-unica').value) || 0;
+  const montoFinal = Math.round(monto * (1 + pct/100));
+  const link = `${window.location.origin}/.netlify/functions/pago?monto=${montoFinal}&concepto=${encodeURIComponent(concepto||'Servicio +Drips')}&cliente=${encodeURIComponent(nombre.toUpperCase().replace(/ /g,'-'))}`;
+
+  const msg = `Hola ${nombre} 👋 Te mando el link para abonar tu servicio +Drips 💧\n🔗 ${link}\nCualquier consulta avisame por acá 🙌`;
+
+  document.getElementById('modal-link-title').textContent = `💸 Link de cobro — ${nombre}`;
+  document.getElementById('modal-link-url').textContent = link;
+  document.getElementById('modal-link-msg').textContent = msg;
+  document.getElementById('modal-link').classList.remove('hidden');
+}
+
+// ── PRESENCIA ──
+async function renderPresencia() {
+  const cont = document.getElementById('presencia-lista');
+  cont.innerHTML = '<p style="color:var(--text-3);font-size:13px">Cargando...</p>';
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/usuarios?select=id,nombre,usuario,rol,ultimo_ping,conectado_desde&order=nombre.asc`, { headers });
+    const usuarios = await r.json();
+    const ahora = Date.now();
+    const TIMEOUT = 5 * 60 * 1000; // 5 min sin ping = desconectado
+
+    cont.innerHTML = usuarios.map(u => {
+      const ping = u.ultimo_ping ? new Date(u.ultimo_ping).getTime() : 0;
+      const conectado = ping && (ahora - ping) < TIMEOUT;
+      const desde = u.conectado_desde ? new Date(u.conectado_desde) : null;
+      const desdeStr = desde ? desde.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }) : null;
+      const ultimoStr = u.ultimo_ping ? new Date(u.ultimo_ping).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }) : null;
+
+      return `<div class="presencia-card ${conectado ? 'online' : 'offline'}">
+        <div class="presencia-dot ${conectado ? 'dot-green' : 'dot-red'}"></div>
+        <div class="presencia-info">
+          <div class="presencia-nombre">${u.nombre} <span class="presencia-rol">(${u.rol||'—'})</span></div>
+          <div class="presencia-estado">
+            ${conectado
+              ? `🟢 Conectado${desdeStr ? ' desde las ' + desdeStr : ''}`
+              : ultimoStr
+                ? `🔴 Desconectado · último acceso: ${ultimoStr}`
+                : '⚫ Sin actividad registrada'
+            }
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    cont.innerHTML = '<p style="color:var(--red);font-size:13px">Error al cargar presencia.</p>';
+  }
+}
+
+// ── INIT ──
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>
