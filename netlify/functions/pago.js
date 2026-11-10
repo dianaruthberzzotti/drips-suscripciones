@@ -45,6 +45,9 @@ exports.handler = async (event) => {
   const concepto = params.concepto || 'Servicio +Drips';
   const cliente  = params.cliente  || '';
 
+  // numero_operacion debe ser numérico — extraemos solo los dígitos del cliente
+  const numeroOperacion = cliente.replace(/\D/g, '') || Date.now().toString();
+
   if (!monto || isNaN(parseFloat(monto))) {
     return {
       statusCode: 400,
@@ -62,12 +65,14 @@ exports.handler = async (event) => {
       password:     EPAGOS_PASSWORD,
       hash:         EPAGOS_HASH,
     });
+    console.log('[pago] token response:', tokenResp);
     const parsed = JSON.parse(tokenResp);
     const tokenValue = parsed.Token || parsed.token;
     if (parsed.id_resp !== '01001' || !tokenValue) {
       throw new Error(`Token error: ${tokenResp}`);
     }
     token = tokenValue;
+    console.log('[pago] token ok, monto:', monto, 'cliente:', cliente, 'numeroOperacion:', numeroOperacion);
   } catch (err) {
     console.error('Error obteniendo token e-Pagos:', err);
     return {
@@ -123,7 +128,7 @@ exports.handler = async (event) => {
     <input name="error_url"            value="${errorUrl}">
     <input name="id_moneda_operacion"  value="1">
     <input name="monto_operacion"      value="${montoDecimal}">
-    <input name="numero_operacion"     value="${cliente}">
+    <input name="numero_operacion"     value="${numeroOperacion}">
     <input name="detalle_operacion"    value="${concepto}">
     <input name="detalle_operacion_visible" value="S">
   </form>
