@@ -94,7 +94,7 @@ exports.handler = async (event) => {
     : 'https://superlative-figolla-1fa580.netlify.app';
 
   const okUrl    = `${baseUrl}/pago-ok.html`;
-  const errorUrl = `${baseUrl}/pago-error.html`;
+  const errorUrl = `${baseUrl}/.netlify/functions/pago-error`;
 
   const html = `<!DOCTYPE html>
 <html lang="es">
