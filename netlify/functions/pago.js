@@ -72,7 +72,7 @@ exports.handler = async (event) => {
       throw new Error(`Token error: ${tokenResp}`);
     }
     token = tokenValue;
-    console.log('[pago] token ok, monto:', monto, 'cliente:', cliente, 'numeroOperacion:', numeroOperacion);
+    console.log('[pago] token ok, monto:', monto, 'montoDecimal:', parseFloat(monto).toFixed(2), 'cliente:', cliente, 'numeroOperacion:', cliente.replace(/\D/g,''), 'concepto:', params.concepto || 'Servicio +Drips');
   } catch (err) {
     console.error('Error obteniendo token e-Pagos:', err);
     return {
@@ -132,7 +132,16 @@ exports.handler = async (event) => {
     <input name="detalle_operacion"    value="${concepto}">
     <input name="detalle_operacion_visible" value="S">
   </form>
-  <script>document.getElementById('f').submit();</script>
+  <script>
+    // Enviar una sola vez, evitar reenvíos por recarga
+    if (!sessionStorage.getItem('submitted_${token}')) {
+      sessionStorage.setItem('submitted_${token}', '1');
+      document.getElementById('f').submit();
+    } else {
+      document.querySelector('p').textContent = 'Este link ya fue usado. Generá uno nuevo desde la app.';
+      document.querySelector('.spinner').style.display = 'none';
+    }
+  </script>
 </body>
 </html>`;
 
