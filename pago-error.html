@@ -8,10 +8,12 @@
     body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center;
            min-height: 100vh; margin: 0; background: #f0f4f8; }
     .box { text-align: center; padding: 2rem; background: white; border-radius: 12px;
-           box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; }
+           box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 480px; }
     .icon { font-size: 3rem; margin-bottom: 1rem; }
     h2 { color: #742a2a; margin: 0 0 0.5rem; }
-    p  { color: #718096; margin: 0; }
+    p  { color: #718096; margin: 0 0 1rem; }
+    .debug { background: #1a202c; color: #68d391; font-family: monospace; font-size: 0.8rem;
+             padding: 1rem; border-radius: 8px; text-align: left; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -19,6 +21,17 @@
     <div class="icon">❌</div>
     <h2>Pago no completado</h2>
     <p>Hubo un problema al procesar el pago. Por favor contactanos por WhatsApp para que te enviemos un nuevo link.</p>
+    <div class="debug" id="debug">Cargando parámetros de error...</div>
   </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const lines = [];
+    if (params.toString()) {
+      params.forEach((v, k) => lines.push(k + ' = ' + v));
+      document.getElementById('debug').textContent = lines.join('\n');
+    } else {
+      document.getElementById('debug').textContent = '(sin parámetros en la URL)';
+    }
+  </script>
 </body>
 </html>
