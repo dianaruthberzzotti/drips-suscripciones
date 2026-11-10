@@ -63,10 +63,11 @@ exports.handler = async (event) => {
       hash:         EPAGOS_HASH,
     });
     const parsed = JSON.parse(tokenResp);
-    if (parsed.id_resp !== '01001' || !parsed.Token) {
+    const tokenValue = parsed.Token || parsed.token;
+    if (parsed.id_resp !== '01001' || !tokenValue) {
       throw new Error(`Token error: ${tokenResp}`);
     }
-    token = parsed.Token;
+    token = tokenValue;
   } catch (err) {
     console.error('Error obteniendo token e-Pagos:', err);
     return {
