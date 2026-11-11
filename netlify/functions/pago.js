@@ -1,12 +1,19 @@
 const https = require('https');
 
-// Credenciales e-Pagos
+// Credenciales e-Pagos PRODUCCIÓN
 const ID_ORGANISMO = '23603';
 const ID_USUARIO   = '403070';
 const HASH         = '738d6a8237e52204f0a4ea8c74579a85';
 const PASSWORD     = 'e597c02dba4c21e80bdc91a2ed0f6934';
 const CONVENIO     = 27603; // Recurrencia Tarjeta de Crédito
 const ID_FP        = 34;    // Tarjeta de Crédito
+
+// SANDBOX para pruebas:
+// ID_USUARIO = '3587'
+// HASH = '18fdfe7ea49d2f314980b0147b534c8a'
+// PASSWORD = '5b9d96a24b02de6ca2bc8e954ec08d57'
+// WSDL_ENDPOINT sandbox = 'https://sandbox.epagos.com/wsdl/2.5/index.php'
+
 const WSDL_ENDPOINT = 'https://api.epagos.com/wsdl/2.5/index.php';
 
 // Namespace de producción
@@ -195,8 +202,16 @@ exports.handler = async (event) => {
 
   try {
     // Paso 1: obtener token
-    const token = await obtenerToken();
-    console.log('Token obtenido:', token);
+    // El token se genera con obtener_token usando las credenciales.
+    // Si falla 01002, probamos usar el PASSWORD directamente como token.
+    let token;
+    try {
+      token = await obtenerToken();
+      console.log('Token obtenido via obtener_token:', token);
+    } catch (tokenErr) {
+      console.warn('obtener_token falló, usando PASSWORD como token:', tokenErr.message);
+      token = PASSWORD;
+    }
 
     // Paso 2: generar link de pago
     const urlPago = await solicitudPago(token, {
