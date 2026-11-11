@@ -1,161 +1,225 @@
-// Netlify Function: /netlify/functions/pago
-// Obtiene un token de e-Pagos y redirige al usuario al checkout
-// URL de uso: /.netlify/functions/pago?monto=100000&concepto=Test+ADN&cliente=DRIPS-12345678
-
 const https = require('https');
-const querystring = require('querystring');
 
-// Credenciales productivas e-Pagos (MAS SALUD / +Drips)
-const EPAGOS_ID_ORGANISMO = '23603';
-const EPAGOS_ID_USUARIO    = '403070';
-const EPAGOS_HASH          = '738d6a8237e52204f0a4ea8c74579a85';
-const EPAGOS_PASSWORD      = 'e597c02dba4c21e80bdc91a2ed0f6934';
-const EPAGOS_CONVENIO      = '27603'; // Recurrencia Tarjeta de Crédito
+// Credenciales e-Pagos
+const ID_ORGANISMO = '23603';
+const ID_USUARIO   = '403070';
+const HASH         = '738d6a8237e52204f0a4ea8c74579a85';
+const PASSWORD     = 'e597c02dba4c21e80bdc91a2ed0f6934';
+const CONVENIO     = 27603; // Recurrencia Tarjeta de Crédito
+const ID_FP        = 34;    // Tarjeta de Crédito
+const WSDL_ENDPOINT = 'https://api.epagos.com/wsdl/2.5/index.php';
 
-const TOKEN_URL   = 'https://api.epagos.com/post.php';
-const CHECKOUT_URL = 'https://post.epagos.com';
+// Namespace de producción
+const NS = 'https://api.epagos.net/';
 
-function postRequest(url, data) {
+function soapRequest(action, body) {
   return new Promise((resolve, reject) => {
-    const body = querystring.stringify(data);
-    const urlObj = new URL(url);
+    const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:san="${NS}"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+ <soapenv:Header/>
+ <soapenv:Body>
+  ${body}
+ </soapenv:Body>
+</soapenv:Envelope>`;
+
+    const url = new URL(WSDL_ENDPOINT);
     const options = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname,
+      hostname: url.hostname,
+      path: url.pathname,
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(body),
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': `${WSDL_ENDPOINT}/${action}`,
+        'Content-Length': Buffer.byteLength(envelope, 'utf8'),
       },
     };
+
     const req = https.request(options, (res) => {
-      let raw = '';
-      res.on('data', (chunk) => { raw += chunk; });
-      res.on('end', () => resolve(raw));
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
     });
     req.on('error', reject);
-    req.write(body);
+    req.write(envelope);
     req.end();
   });
 }
 
+function extractTag(xml, tag) {
+  const m = xml.match(new RegExp(`<(?:[^:]+:)?${tag}[^>]*>([^<]*)<`));
+  return m ? m[1].trim() : null;
+}
+
+async function obtenerToken() {
+  const body = `<san:obtener_token soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+   <version xsi:type="xsd:string">2.0</version>
+   <credenciales xsi:type="san:DatosCredenciales">
+    <id_organismo xsi:type="xsd:int">${ID_ORGANISMO}</id_organismo>
+    <id_usuario xsi:type="xsd:int">${ID_USUARIO}</id_usuario>
+    <password xsi:type="xsd:string">${PASSWORD}</password>
+    <Hash xsi:type="xsd:string">${HASH}</Hash>
+   </credenciales>
+  </san:obtener_token>`;
+
+  const xml = await soapRequest('obtener_token', body);
+  console.log('obtener_token response:', xml);
+
+  const idResp = extractTag(xml, 'id_resp');
+  if (idResp !== '00') {
+    const respuesta = extractTag(xml, 'respuesta');
+    throw new Error(`obtener_token error ${idResp}: ${respuesta}`);
+  }
+  return extractTag(xml, 'token');
+}
+
+async function solicitudPago(token, { monto, concepto, numeroOperacion, identificadorCliente, emailPagador, fechaVencimiento }) {
+  const body = `<san:solicitud_pago soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+   <version xsi:type="xsd:string">2.0</version>
+   <tipo_operacion xsi:type="san:TipoOperacion">op_pago</tipo_operacion>
+   <credenciales xsi:type="san:DatosCredencialesPago">
+    <id_organismo xsi:type="xsd:int">${ID_ORGANISMO}</id_organismo>
+    <token xsi:type="xsd:string">${token}</token>
+   </credenciales>
+   <operacion xsi:type="san:DatosOperacionPago">
+    <numero_operacion xsi:type="xsd:string">${numeroOperacion}</numero_operacion>
+    <identificador_externo_2 xsi:type="xsd:string"></identificador_externo_2>
+    <identificador_externo_3 xsi:type="xsd:string"></identificador_externo_3>
+    <identificador_externo_4 xsi:type="xsd:string"></identificador_externo_4>
+    <url_ok xsi:type="xsd:string"></url_ok>
+    <url_error xsi:type="xsd:string"></url_error>
+    <url_boleta xsi:type="xsd:string"></url_boleta>
+    <identificador_cliente xsi:type="xsd:string">${identificadorCliente}</identificador_cliente>
+    <id_moneda_operacion xsi:type="xsd:int">1</id_moneda_operacion>
+    <monto_operacion xsi:type="xsd:float">${monto}</monto_operacion>
+    <opc_pdf xsi:type="xsd:boolean">false</opc_pdf>
+    <opc_fecha_vencimiento xsi:type="xsd:date">${fechaVencimiento}</opc_fecha_vencimiento>
+    <opc_devolver_qr xsi:type="xsd:boolean">false</opc_devolver_qr>
+    <opc_devolver_codbarras xsi:type="xsd:boolean">false</opc_devolver_codbarras>
+    <opc_generar_pdf xsi:type="xsd:boolean">false</opc_generar_pdf>
+    <opc_operaciones_lote xsi:type="san:OperacionesLoteArray" SOAP-ENC:arrayType="san:OperacionesLote[0]"/>
+    <opc_fp_excluidas xsi:type="xsd:string"></opc_fp_excluidas>
+    <opc_tp_excluidos xsi:type="xsd:string"></opc_tp_excluidos>
+    <opc_fp_permitidas xsi:type="xsd:string"></opc_fp_permitidas>
+    <detalle_operacion xsi:type="san:DetallePagoArray" SOAP-ENC:arrayType="san:DetallePago[1]">
+     <item xsi:type="san:DetallePago">
+      <id_item xsi:type="xsd:int">1</id_item>
+      <desc_item xsi:type="xsd:string">${concepto}</desc_item>
+      <monto_item xsi:type="xsd:float">${monto}</monto_item>
+      <cantidad_item xsi:type="xsd:int">1</cantidad_item>
+     </item>
+    </detalle_operacion>
+    <fecha_2do_venc xsi:type="xsd:date"></fecha_2do_venc>
+    <monto_operacion_2do_venc xsi:type="xsd:float"></monto_operacion_2do_venc>
+    <pagador xsi:type="san:DatosPagadorPago">
+     <nombre_pagador xsi:type="xsd:string"></nombre_pagador>
+     <apellido_pagador xsi:type="xsd:string"></apellido_pagador>
+     <fechanac_pagador xsi:type="xsd:date">2000-01-01</fechanac_pagador>
+     <email_pagador xsi:type="xsd:string">${emailPagador || ''}</email_pagador>
+     <identificacion_pagador xsi:type="san:IdentificacionPagador">
+      <tipo_doc_pagador xsi:type="xsd:int">0</tipo_doc_pagador>
+      <numero_doc_pagador xsi:type="xsd:long">0</numero_doc_pagador>
+      <cuit_doc_pagador xsi:type="xsd:long">0</cuit_doc_pagador>
+     </identificacion_pagador>
+     <domicilio_pagador xsi:type="san:DomicilioPagador">
+      <calle_dom_pagador xsi:type="xsd:string"></calle_dom_pagador>
+      <numero_dom_pagador xsi:type="xsd:string"></numero_dom_pagador>
+      <adicional_dom_pagador xsi:type="xsd:string"></adicional_dom_pagador>
+      <cp_dom_pagador xsi:type="xsd:string"></cp_dom_pagador>
+      <ciudad_dom_pagador xsi:type="xsd:string"></ciudad_dom_pagador>
+      <provincia_dom_pagador xsi:type="xsd:int">0</provincia_dom_pagador>
+      <pais_dom_pagador xsi:type="xsd:int">0</pais_dom_pagador>
+     </domicilio_pagador>
+     <telefono_pagador xsi:type="san:TelefonoPagador">
+      <codigo_telef_pagador xsi:type="xsd:int">0</codigo_telef_pagador>
+      <numero_telef_pagador xsi:type="xsd:int">0</numero_telef_pagador>
+     </telefono_pagador>
+     <cbu_pagador xsi:type="xsd:string"></cbu_pagador>
+    </pagador>
+    <tipo_operacion xsi:type="xsd:int">1</tipo_operacion>
+    <codigo_publicacion xsi:type="xsd:int"></codigo_publicacion>
+    <opc_T30_cerrado xsi:type="xsd:boolean"></opc_T30_cerrado>
+    <opc_T30_reutilizable xsi:type="xsd:boolean"></opc_T30_reutilizable>
+    <opc_T30_require_orden xsi:type="xsd:boolean"></opc_T30_require_orden>
+    <opc_una_cuota xsi:type="xsd:boolean"></opc_una_cuota>
+   </operacion>
+   <fp xsi:type="san:DatosFormaPagoArray" SOAP-ENC:arrayType="san:DatosFormaPago[1]">
+    <item xsi:type="san:DatosFormaPago">
+     <id_fp xsi:type="xsd:int">${ID_FP}</id_fp>
+     <monto_fp xsi:type="xsd:float">${monto}</monto_fp>
+    </item>
+   </fp>
+   <convenio xsi:type="xsd:int">${CONVENIO}</convenio>
+  </san:solicitud_pago>`;
+
+  const xml = await soapRequest('solicitud_pago', body);
+  console.log('solicitud_pago response:', xml);
+
+  const idResp = extractTag(xml, 'id_resp');
+  if (idResp !== '00') {
+    const respuesta = extractTag(xml, 'respuesta');
+    throw new Error(`solicitud_pago error ${idResp}: ${respuesta}`);
+  }
+
+  // Buscar url_qr dentro del array fp de la respuesta
+  const urlQr = extractTag(xml, 'url_qr');
+  if (!urlQr) {
+    throw new Error('No se recibió url_qr en la respuesta');
+  }
+  return urlQr;
+}
+
 exports.handler = async (event) => {
   const params = event.queryStringParameters || {};
-  const monto    = params.monto    || '';
-  const concepto = params.concepto || 'Servicio +Drips';
-  const cliente  = params.cliente  || '';
-  const email    = params.email    || '';
+  const monto             = parseFloat(params.monto || '0');
+  const concepto          = params.concepto || 'Suscripcion Drips';
+  const cliente           = params.cliente || '';
+  const email             = params.email || '';
+  const numeroOperacion   = params.op || `DRIPS-${Date.now()}`;
 
-  // numero_operacion debe ser numérico y único — usamos timestamp para evitar duplicados
-  const numeroOperacion = Date.now().toString();
+  // Fecha de vencimiento: 30 días desde hoy
+  const venc = new Date();
+  venc.setDate(venc.getDate() + 30);
+  const fechaVencimiento = venc.toISOString().split('T')[0];
 
-  // identificador_cliente: alfanumérico, mínimo 6 caracteres, único por contribuyente
-  // Usamos el cliente original (ej: "DRIPS-23804521") que ya es alfanumérico
-  const identificadorCliente = cliente || numeroOperacion;
-
-  if (!monto || isNaN(parseFloat(monto))) {
+  if (!monto || !cliente) {
     return {
       statusCode: 400,
-      body: '<h2>Error: parámetro monto inválido o faltante.</h2>',
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      body: JSON.stringify({ error: 'Parámetros requeridos: monto, cliente' }),
     };
   }
 
-  // 1. Obtener token
-  let token;
   try {
-    const tokenResp = await postRequest(TOKEN_URL, {
-      id_usuario:   EPAGOS_ID_USUARIO,
-      id_organismo: EPAGOS_ID_ORGANISMO,
-      password:     EPAGOS_PASSWORD,
-      hash:         EPAGOS_HASH,
+    // Paso 1: obtener token
+    const token = await obtenerToken();
+    console.log('Token obtenido:', token);
+
+    // Paso 2: generar link de pago
+    const urlPago = await solicitudPago(token, {
+      monto,
+      concepto,
+      numeroOperacion,
+      identificadorCliente: cliente,
+      emailPagador: email,
+      fechaVencimiento,
     });
-    console.log('[pago] token response:', tokenResp);
-    const parsed = JSON.parse(tokenResp);
-    const tokenValue = parsed.Token || parsed.token;
-    if (parsed.id_resp !== '01001' || !tokenValue) {
-      throw new Error(`Token error: ${tokenResp}`);
-    }
-    token = tokenValue;
-    console.log('[pago] token ok, monto:', monto, 'montoDecimal:', parseFloat(monto).toFixed(2), 'cliente:', cliente, 'numeroOperacion:', cliente.replace(/\D/g,''), 'concepto:', params.concepto || 'Servicio +Drips');
-  } catch (err) {
-    console.error('Error obteniendo token e-Pagos:', err);
+
+    // Redirigir al link de pago
     return {
-      statusCode: 502,
-      body: `<h2>Error al conectar con e-Pagos. Intentá de nuevo.</h2><p>${err.message}</p>`,
+      statusCode: 302,
+      headers: { Location: urlPago },
+      body: '',
+    };
+  } catch (err) {
+    console.error('Error:', err.message);
+    return {
+      statusCode: 500,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      body: `<h2>Error al generar link de pago</h2><p>${err.message}</p>`,
     };
   }
-
-  // 2. Generar HTML con form auto-submit hacia post.epagos.com
-  const montoDecimal = parseFloat(monto).toFixed(2);
-  const baseUrl = event.headers && event.headers.host
-    ? `https://${event.headers.host}`
-    : 'https://superlative-figolla-1fa580.netlify.app';
-
-  const okUrl    = `${baseUrl}/pago-ok.html`;
-  const errorUrl = `${baseUrl}/.netlify/functions/pago-error`;
-
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirigiendo al pago...</title>
-  <style>
-    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center;
-           min-height: 100vh; margin: 0; background: #f0f4f8; }
-    .box { text-align: center; padding: 2rem; background: white; border-radius: 12px;
-           box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; }
-    .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    h2 { color: #1a365d; margin: 0 0 0.5rem; }
-    p  { color: #718096; margin: 0 0 1.5rem; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0;
-               border-top-color: #3182ce; border-radius: 50%;
-               animation: spin 0.8s linear infinite; margin: 0 auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <div class="logo">💧</div>
-    <h2>+Drips</h2>
-    <p>Redirigiendo al portal de pago...</p>
-    <div class="spinner"></div>
-  </div>
-  <form id="f" method="POST" action="${CHECKOUT_URL}" style="display:none">
-    <input name="version"              value="1.0">
-    <input name="operacion"            value="op_pago">
-    <input name="convenio"             value="${EPAGOS_CONVENIO}">
-    <input name="id_organismo"         value="${EPAGOS_ID_ORGANISMO}">
-    <input name="token"                value="${token}">
-    <input name="ok_url"               value="${okUrl}">
-    <input name="error_url"            value="${errorUrl}">
-    <input name="id_moneda_operacion"  value="1">
-    <input name="monto_operacion"      value="${montoDecimal}">
-    <input name="numero_operacion"     value="${numeroOperacion}">
-    <input name="detalle_operacion"    value="${concepto}">
-    <input name="detalle_operacion_visible"  value="S">
-    <input name="identificador_cliente"     value="${identificadorCliente}">
-    ${email ? `<input name="email_pagador" value="${email}">` : ''}
-    <input name="opc_guardado_obligatorio"  value="true">
-  </form>
-  <script>
-    // Enviar una sola vez, evitar reenvíos por recarga
-    if (!sessionStorage.getItem('submitted_${token}')) {
-      sessionStorage.setItem('submitted_${token}', '1');
-      document.getElementById('f').submit();
-    } else {
-      document.querySelector('p').textContent = 'Este link ya fue usado. Generá uno nuevo desde la app.';
-      document.querySelector('.spinner').style.display = 'none';
-    }
-  </script>
-</body>
-</html>`;
-
-  return {
-    statusCode: 200,
-    body: html,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  };
 };
