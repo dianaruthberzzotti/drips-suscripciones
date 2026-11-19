@@ -79,9 +79,13 @@ async function obtenerToken() {
   const idResp = extractTag(xml, 'id_resp');
   if (idResp !== '00') {
     const respuesta = extractTag(xml, 'respuesta');
-    throw new Error(`obtener_token error ${idResp}: ${respuesta}`);
+    const err = new Error(`obtener_token error ${idResp}: ${respuesta}`);
+    err.debugXml = xml;
+    throw err;
   }
-  return extractTag(xml, 'token');
+  const token = extractTag(xml, 'token');
+  console.log('token extraido:', token);
+  return token;
 }
 
 async function solicitudPago(token, { monto, concepto, numeroOperacion, identificadorCliente, emailPagador, fechaVencimiento }) {
@@ -169,7 +173,9 @@ async function solicitudPago(token, { monto, concepto, numeroOperacion, identifi
   const idResp = extractTag(xml, 'id_resp');
   if (idResp !== '00') {
     const respuesta = extractTag(xml, 'respuesta');
-    throw new Error(`solicitud_pago error ${idResp}: ${respuesta}`);
+    const err = new Error(`solicitud_pago error ${idResp}: ${respuesta}`);
+    err.debugXml = `TOKEN USADO: ${token}\n\nRESPUESTA:\n${xml}`;
+    throw err;
   }
 
   // Buscar url_qr dentro del array fp de la respuesta
@@ -202,16 +208,8 @@ exports.handler = async (event) => {
 
   try {
     // Paso 1: obtener token
-    // El token se genera con obtener_token usando las credenciales.
-    // Si falla 01002, probamos usar el PASSWORD directamente como token.
-    let token;
-    try {
-      token = await obtenerToken();
-      console.log('Token obtenido via obtener_token:', token);
-    } catch (tokenErr) {
-      console.warn('obtener_token falló, usando PASSWORD como token:', tokenErr.message);
-      token = PASSWORD;
-    }
+    const token = await obtenerToken();
+    console.log('Token obtenido:', token);
 
     // Paso 2: generar link de pago
     const urlPago = await solicitudPago(token, {
@@ -234,7 +232,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: `<h2>Error al generar link de pago</h2><p>${err.message}</p>`,
+      body: `<h2>Error al generar link de pago</h2><p>${err.message}</p><pre>${err.debugXml || ''}</pre>`,
     };
   }
 };
