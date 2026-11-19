@@ -172,19 +172,25 @@ async function solicitudPago(token, { monto, concepto, numeroOperacion, identifi
   console.log('solicitud_pago response:', xml);
 
   const idResp = extractTag(xml, 'id_resp');
-  if (idResp !== '00') {
+  // 00 = pago nuevo OK, 02002 = pago pendiente ya existe (también tiene URL válida)
+  if (idResp !== '00' && idResp !== '02002') {
     const respuesta = extractTag(xml, 'respuesta');
     const err = new Error(`solicitud_pago error ${idResp}: ${respuesta}`);
     err.debugXml = `TOKEN USADO: ${token}\n\nRESPUESTA:\n${xml}`;
     throw err;
   }
 
-  // Buscar url_qr dentro del array fp de la respuesta
-  const urlQr = extractTag(xml, 'url_qr');
-  if (!urlQr) {
-    throw new Error('No se recibió url_qr en la respuesta');
+  // La URL de pago viene en url_boleta o al final del XML como https://post.epagos.com/...
+  let urlPago = extractTag(xml, 'url_boleta') || extractTag(xml, 'url_qr');
+  if (!urlPago) {
+    // Buscar cualquier URL de epagos en el XML
+    const m = xml.match(/https:\/\/post\.epagos\.com\/[^\s<"']*/);
+    urlPago = m ? m[0] : null;
   }
-  return urlQr;
+  if (!urlPago) {
+    throw new Error('No se recibió URL de pago en la respuesta');
+  }
+  return urlPago;
 }
 
 exports.handler = async (event) => {
