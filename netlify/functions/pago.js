@@ -239,7 +239,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: `<h2>Error al generar link de pago</h2><p>${err.message}</p><pre>${err.debugXml || ''}</pre>`,
+      body: `<h2>Error al generar link de pago</h2><p>${err.message}</p>`,
     };
   }
 };
