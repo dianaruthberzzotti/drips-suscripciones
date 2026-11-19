@@ -16,8 +16,8 @@ const ID_FP        = 34;    // Tarjeta de Crédito
 
 const WSDL_ENDPOINT = 'https://api.epagos.com/wsdl/2.5/index.php';
 
-// Namespace (debe coincidir con el WSDL)
-const NS = 'https://api.epagos.com/';
+// Namespace (del WSDL oficial)
+const NS = 'https://api.epagos.net/';
 
 function soapRequest(action, body) {
   return new Promise((resolve, reject) => {
@@ -67,9 +67,9 @@ async function obtenerToken() {
    <version xsi:type="xsd:string">2.0</version>
    <credenciales xsi:type="san:DatosCredenciales">
     <id_organismo xsi:type="xsd:int">${ID_ORGANISMO}</id_organismo>
-    <id_usuario xsi:type="xsd:int">${ID_USUARIO}</id_usuario>
+    <id_usuario xsi:type="xsd:string">${ID_USUARIO}</id_usuario>
     <password xsi:type="xsd:string">${PASSWORD}</password>
-    <Hash xsi:type="xsd:string">${HASH}</Hash>
+    <hash xsi:type="xsd:string">${HASH}</hash>
    </credenciales>
   </san:obtener_token>`;
 
