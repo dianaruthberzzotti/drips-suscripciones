@@ -77,7 +77,8 @@ async function obtenerToken() {
   console.log('obtener_token response:', xml);
 
   const idResp = extractTag(xml, 'id_resp');
-  if (idResp !== '00') {
+  // 00 = OK general, 01001 = "Token generado" (también es éxito para obtener_token)
+  if (idResp !== '00' && idResp !== '01001') {
     const respuesta = extractTag(xml, 'respuesta');
     const err = new Error(`obtener_token error ${idResp}: ${respuesta}`);
     err.debugXml = xml;
