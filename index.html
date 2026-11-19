@@ -273,10 +273,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     Nueva suscripción
   </div>
-  <div class="nav-item" onclick="goTo('cobro-unico')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-    Cobro único
-  </div>
   <div class="nav-item" id="nav-presencia" style="display:none" onclick="goTo('presencia')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="18" cy="8" r="2" fill="currentColor" stroke="none" style="fill:#059669"/></svg>
     Presencia
@@ -421,47 +417,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
     </div>
   </div>
 
-  <!-- COBRO ÚNICO -->
-  <div class="page" id="page-cobro-unico">
-    <div class="page-header">
-      <div class="page-title">💸 Cobro único</div>
-      <div class="page-sub">Generar link de pago para un cobro puntual</div>
-    </div>
-    <div class="page-body">
-      <div class="card" style="max-width:520px">
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Nombre del paciente *</label>
-            <input type="text" id="cu-nombre" placeholder="Ej: Juan García">
-          </div>
-          <div class="form-group">
-            <label>Monto a cobrar ($) *</label>
-            <input type="number" id="cu-monto" placeholder="Ej: 30000" oninput="calcComisionUnica()">
-          </div>
-          <div class="form-group">
-            <label>Concepto</label>
-            <input type="text" id="cu-concepto" placeholder="Ej: Consulta, Sesión IV...">
-          </div>
-        </div>
-
-        <!-- Comisión cobro único -->
-        <div id="comision-unica-box" class="comision-box" style="margin-top:20px;display:none">
-          <div class="title">💳 Cálculo de comisiones</div>
-          <div class="comision-config">
-            <label>% comisión e-Pagos:</label>
-            <input type="number" id="pct-unica" value="3.5" step="0.1" min="0" max="100" oninput="calcComisionUnica()">
-          </div>
-          <div class="comision-row"><span class="lbl">Monto ingresado</span><span class="val" id="cu-base">—</span></div>
-          <div class="comision-row"><span class="lbl">Comisión e-Pagos</span><span class="val" id="cu-com">—</span></div>
-          <div class="comision-row total"><span class="lbl" style="font-weight:700">Precio sugerido al cliente</span><span class="val" id="cu-sug">—</span></div>
-        </div>
-
-        <button class="btn btn-primary" style="margin-top:20px" onclick="generarCobroUnico()">💸 Generar link de cobro</button>
-        <div id="cu-error" style="color:var(--red);font-size:13px;margin-top:8px"></div>
-      </div>
-    </div>
-  </div>
-
   <!-- PRESENCIA -->
   <div class="page" id="page-presencia">
     <div class="page-header">
@@ -598,7 +553,7 @@ function goTo(p) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById('page-' + p).classList.add('active');
   const navItems = document.querySelectorAll('.nav-item');
-  const pages = ['resumen','suscripciones','nueva','cobro-unico','presencia'];
+  const pages = ['resumen','suscripciones','nueva','presencia'];
   const idx = pages.indexOf(p);
   // buscar el nav item correcto por onclick
   navItems.forEach(el => { if (el.getAttribute('onclick') === `goTo('${p}')`) el.classList.add('active'); });
@@ -793,42 +748,6 @@ function limpiarFormNueva() {
   ['n-nombre','n-dni','n-tel','n-email','n-plan','n-monto','n-obs'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('comision-nueva-box').style.display = 'none';
   document.getElementById('nueva-error').textContent = '';
-}
-
-// ── COBRO ÚNICO ──
-function calcComisionUnica() {
-  const monto = parseFloat(document.getElementById('cu-monto').value);
-  const pct = parseFloat(document.getElementById('pct-unica').value) || 0;
-  const box = document.getElementById('comision-unica-box');
-  if (!monto || monto <= 0) { box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  const com = monto * pct / 100;
-  const sug = monto + com;
-  const fmt = n => '$' + Math.round(n).toLocaleString('es-AR');
-  document.getElementById('cu-base').textContent = fmt(monto);
-  document.getElementById('cu-com').textContent = fmt(com) + ` (${pct}%)`;
-  document.getElementById('cu-sug').textContent = fmt(sug);
-}
-
-function generarCobroUnico() {
-  const nombre = document.getElementById('cu-nombre').value.trim();
-  const monto = parseFloat(document.getElementById('cu-monto').value);
-  const concepto = document.getElementById('cu-concepto').value.trim();
-  const err = document.getElementById('cu-error');
-  err.textContent = '';
-  if (!nombre || !monto) { err.textContent = 'Completá nombre y monto.'; return; }
-
-  // Para cobro único usamos el monto sugerido (con comisión incluida)
-  const pct = parseFloat(document.getElementById('pct-unica').value) || 0;
-  const montoFinal = Math.round(monto * (1 + pct/100));
-  const link = `${window.location.origin}/.netlify/functions/pago?monto=${montoFinal}&concepto=${encodeURIComponent(concepto||'Servicio +Drips')}&cliente=${encodeURIComponent(nombre.toUpperCase().replace(/ /g,'-'))}`;
-
-  const msg = `Hola ${nombre} 👋 Te mando el link para abonar tu servicio +Drips 💧\n🔗 ${link}\nCualquier consulta avisame por acá 🙌`;
-
-  document.getElementById('modal-link-title').textContent = `💸 Link de cobro — ${nombre}`;
-  document.getElementById('modal-link-url').textContent = link;
-  document.getElementById('modal-link-msg').textContent = msg;
-  document.getElementById('modal-link').classList.remove('hidden');
 }
 
 // ── PRESENCIA ──
