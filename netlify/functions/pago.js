@@ -16,8 +16,8 @@ const ID_FP        = 34;    // Tarjeta de Crédito
 
 const WSDL_ENDPOINT = 'https://api.epagos.com/wsdl/2.5/index.php';
 
-// Namespace de producción
-const NS = 'https://api.epagos.net/';
+// Namespace (debe coincidir con el WSDL)
+const NS = 'https://api.epagos.com/';
 
 function soapRequest(action, body) {
   return new Promise((resolve, reject) => {
@@ -41,7 +41,7 @@ function soapRequest(action, body) {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': `${WSDL_ENDPOINT}/${action}`,
+        'SOAPAction': `${NS}${action}`,
         'Content-Length': Buffer.byteLength(envelope, 'utf8'),
       },
     };
