@@ -715,7 +715,7 @@ async function ejecutarCobro(id) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        identificadorCliente: s.dni ? String(s.dni) : String(s.id),
+        identificadorCliente: s.dni ? `DRIPS-${s.dni}` : String(s.id),
         monto: s.monto,
         concepto: `Suscripcion Drips - ${s.nombre}`,
         convenio: s.cobro === 'debito' ? 28603 : 27603,
