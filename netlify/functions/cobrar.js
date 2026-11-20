@@ -90,14 +90,14 @@ async function obtenerTarjetasCliente(token, identificadorCliente) {
 
   const idResp = extractTag(xml, 'id_resp');
   if (idResp !== '10001') {
-    throw new Error(`obtener_tarjetas_cliente error ${idResp}: ${extractTag(xml, 'respuesta')}`);
+    throw new Error(`obtener_tarjetas_cliente error ${idResp}: ${extractTag(xml, 'respuesta')} | XML: ${xml}`);
   }
 
   // Extraer identificador_tarjeta del primer resultado
   const idTarjeta = extractTag(xml, 'identificador_tarjeta');
   const idFp = extractTag(xml, 'id_fp');
   if (!idTarjeta) {
-    throw new Error('No se encontró tarjeta guardada para este cliente');
+    throw new Error(`No se encontró tarjeta guardada para este cliente | XML: ${xml}`);
   }
   return { identificadorTarjeta: idTarjeta, idFp: parseInt(idFp) || 34 };
 }
