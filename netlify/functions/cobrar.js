@@ -156,7 +156,8 @@ async function solicitudPagoRecurrente(token, { identificadorCliente, identifica
   console.log('solicitud_pago_recurrente response:', xml);
 
   const idResp = extractTag(xml, 'id_resp');
-  if (idResp !== '00' && idResp !== '02002') {
+  // 00 = OK, 02002 = pendiente con URL, 09001 = Pago acreditado (también éxito)
+  if (idResp !== '00' && idResp !== '02002' && idResp !== '09001') {
     throw new Error(`solicitud_pago_recurrente error ${idResp}: ${extractTag(xml, 'respuesta')}`);
   }
   return { idResp, respuesta: extractTag(xml, 'respuesta'), numeroOperacion };
