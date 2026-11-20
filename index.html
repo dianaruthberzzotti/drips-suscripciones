@@ -630,6 +630,7 @@ function botonesAccion(s) {
   let btns = '';
   if (s.link) btns += `<button class="btn btn-ghost btn-sm" onclick="mostrarLink('${s.id}')">🔗 Link</button> `;
   if (s.estado === 'pendiente') btns += `<button class="btn btn-green btn-sm" onclick="confirmarActivar('${s.id}','${s.nombre}')">✓ Confirmar</button> `;
+  if (s.estado === 'activa') btns += `<button class="btn btn-primary btn-sm" onclick="confirmarCobrar('${s.id}','${s.nombre}')">💳 Cobrar</button> `;
   if (s.estado === 'activa') btns += `<button class="btn btn-ghost btn-sm" onclick="confirmarBaja('${s.id}','${s.nombre}')">Dar de baja</button>`;
   return btns || '—';
 }
@@ -689,6 +690,61 @@ async function darBaja(id) {
   await cargarSuscripciones();
   renderSuscripciones();
   renderResumen();
+}
+
+// ── COBRO RECURRENTE ──
+function confirmarCobrar(id, nombre) {
+  const s = allSuscripciones.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('confirm-title').textContent = '💳 Ejecutar cobro';
+  document.getElementById('confirm-msg').textContent = `¿Cobrar $${Math.round(s.monto).toLocaleString('es-AR')} a ${nombre} usando la tarjeta guardada en e-Pagos?`;
+  document.getElementById('confirm-ok').onclick = () => ejecutarCobro(id);
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+
+async function ejecutarCobro(id) {
+  cerrarConfirm();
+  const s = allSuscripciones.find(x => x.id === id);
+  if (!s) return;
+
+  // Mostrar estado de carga
+  showToast('Procesando cobro...', 'info');
+
+  try {
+    const res = await fetch('/.netlify/functions/cobrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identificadorCliente: s.dni || s.cliente || String(s.id),
+        monto: s.monto,
+        concepto: `Suscripcion Drips - ${s.nombre}`,
+        convenio: s.cobro === 'debito' ? 28603 : 27603,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`✅ Cobro ejecutado correctamente (op. ${data.numeroOperacion})`, 'success');
+    } else {
+      showToast(`❌ Error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`❌ Error de conexión: ${err.message}`, 'error');
+  }
+}
+
+function showToast(msg, tipo) {
+  let toast = document.getElementById('toast-cobro');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-cobro';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;max-width:90vw;text-align:center;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = tipo === 'success' ? '#22c55e' : tipo === 'error' ? '#ef4444' : '#6366f1';
+  toast.style.color = 'white';
+  toast.style.display = 'block';
+  if (tipo !== 'info') setTimeout(() => { toast.style.display = 'none'; }, 5000);
 }
 
 // ── NUEVA SUSCRIPCIÓN ──
